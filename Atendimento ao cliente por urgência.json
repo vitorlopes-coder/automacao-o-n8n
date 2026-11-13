@@ -1,0 +1,179 @@
+{
+  "name": "Atendimento ao cliente por urgência",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "atendimento-cliente-urgencia",
+        "responseMode": "lastNode",
+        "responseData": "noData",
+        "options": {}
+      },
+      "id": "8330a611-f4be-4d32-bfdd-6fe257de130d",
+      "name": "Webhook de contato",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        96
+      ],
+      "webhookId": "a3fe7109-c825-4d39-bfd2-a1b5821c6906"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const b = $json.body;\n// Validação\nif (!b || typeof b !== 'object' || Array.isArray(b)) throw new Error('O corpo deve ser um objeto JSON.');\n// Campos da mensagem\nconst fields = ['nome_cliente', 'email', 'categoria', 'urgencia', 'mensagem'];\n// Validação de campos\nfor (const f of fields) if (typeof b[f] !== 'string' || !b[f].trim()) throw new Error('Campo obrigatório inválido: ' + f);\n// Captura e formatação da urgencia\nconst urgencia = b.urgencia.trim().toUpperCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\n// Valida urgência\nif (!['ALTA', 'MEDIA', 'BAIXA'].includes(urgencia)) throw new Error('Urgência deve ser ALTA, MÉDIA ou BAIXA.');\n// Valida urgência\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(b.email.trim())) throw new Error('E-mail inválido.');\n// validação dos campos\nconst esc = s => s.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n// geração de de um novo json validado\nreturn {json:{nome_cliente:esc(b.nome_cliente),email:esc(b.email),categoria:esc(b.categoria),urgencia,mensagem:esc(b.mensagem)}};"
+      },
+      "id": "d834f28e-535a-4b64-93f4-004f8050da47",
+      "name": "Validar e normalizar dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.urgencia }}",
+              "rightValue": "MEDIA",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "bef352bb-70fa-4820-8475-200dbcafbf06"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fe45ff3f-dbe7-4dc4-b1da-fa8b3f7fd4c7",
+      "name": "Urgência alta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "-5202189412",
+        "text": "={{ \"🚨🚨 <b>ALERTA DE EMERGÊNCIA</b> 🚨🚨\\n\\n<b>Urgência: ALTA</b>\\nCliente: \" + $json.nome_cliente + \"\\nE-mail: \" + $json.email + \"\\nCategoria: \" + $json.categoria + \"\\nMensagem: \" + $json.mensagem }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "d6423dbf-9537-492b-a897-6efea3997ebe",
+      "name": "Telegram - alerta urgente",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "webhookId": "5f08667a-96a3-451e-8614-a990592e159b",
+      "credentials": {
+        "telegramApi": {
+          "id": "t3lRpkaLziegZkpI",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-5202189412",
+        "text": "={{ \"📩 <b>Novo contato para acompanhamento</b>\\n\\nUrgência: \" + $json.urgencia + \"\\nCliente: \" + $json.nome_cliente + \"\\nE-mail: \" + $json.email + \"\\nCategoria: \" + $json.categoria + \"\\nMensagem: \" + $json.mensagem }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "f42fde18-1ef0-47f9-b475-9d2939fe65a4",
+      "name": "Telegram - acompanhamento",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        192
+      ],
+      "webhookId": "ab5e4429-efc1-437f-9909-b66c7abecf7f",
+      "credentials": {
+        "telegramApi": {
+          "id": "t3lRpkaLziegZkpI",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook de contato": {
+      "main": [
+        [
+          {
+            "node": "Validar e normalizar dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar e normalizar dados": {
+      "main": [
+        [
+          {
+            "node": "Urgência alta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgência alta?": {
+      "main": [
+        [
+          {
+            "node": "Telegram - alerta urgente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram - acompanhamento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "8986fe64-c29c-45c6-ab26-4b28cfcae4a8",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4b29366de67b32af2a386f11ab622669bf7bb2e9b1162db01833c59a035c1084"
+  },
+  "nodeGroups": [],
+  "id": "oQhrOMWRoSrIYd6S",
+  "tags": []
+}
